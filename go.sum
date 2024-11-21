@@ -1,0 +1,4 @@
+git.ailur.dev/ailur/spf v1.0.1 h1:ApkuF2YsQJgUMo0I4cmQcHBERXZ+ZspOkqMe2lyaUfk=
+git.ailur.dev/ailur/spf v1.0.1/go.mod h1:j+l6sReELJT3VCyAt/DgOfNqNYU/AvzJvj5vgLt3WGo=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
