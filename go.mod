@@ -1,4 +1,4 @@
-module smtp
+module git.ailur.dev/ailur/smtp
 
 go 1.23
 
