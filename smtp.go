@@ -58,7 +58,7 @@ type DatabaseBackend struct {
 
 // AuthenticationBackend is a struct that represents an authentication backend
 type AuthenticationBackend struct {
-	Authenticate func(conn *textproto.Conn) (*Address, error)
+	Authenticate func(initial string, conn *textproto.Conn) (*Address, error)
 }
 
 func readMultilineCodeResponse(conn *textproto.Conn) (int, string, error) {
@@ -320,7 +320,7 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 				}
 				continue
 			} else {
-				address, err := fr.auth.Authenticate(textProto)
+				address, err := fr.auth.Authenticate(strings.TrimPrefix(line, "AUTH "), textProto)
 				if err != nil {
 					_ = textProto.PrintfLine("421 4.7.0 Temporary server error")
 					_ = conn.Close()
