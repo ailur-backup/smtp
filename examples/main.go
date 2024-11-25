@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"net"
-	"smtp"
+
+	"net/textproto"
+
+	"git.ailur.dev/ailur/smtp"
 )
 
 // DatabaseBackend is a smtp.DatabaseBackend implementation that always returns true for CheckUser and prints the mail data to stdout.
@@ -12,15 +14,15 @@ var DatabaseBackend = smtp.DatabaseBackend{
 	CheckUser: func(address *smtp.Address) (bool, error) {
 		return true, nil
 	},
-	WriteMail: func(mail *smtp.Mail) (uuid.UUID, error) {
+	WriteMail: func(mail *smtp.Mail) error {
 		fmt.Println(string(mail.Data))
-		return uuid.New(), nil
+		return nil
 	},
 }
 
 // AuthenticationBackend is a smtp.AuthenticationBackend implementation that always returns a fixed address for Authenticate.
 var AuthenticationBackend = smtp.AuthenticationBackend{
-	Authenticate: func(authCommand string) (*smtp.Address, error) {
+	Authenticate: func(initial string, conn *textproto.Conn) (*smtp.Address, error) {
 		return &smtp.Address{
 			Name:    "test",
 			Address: "example.org",
