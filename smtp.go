@@ -7,12 +7,12 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"crypto/tls"
 	"net/textproto"
 
 	"git.ailur.dev/ailur/spf"
-	"github.com/google/uuid"
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 		"250-SMTPUTF8",
 		"250 BINARYMIME",
 	}
-	queue = make(map[uuid.UUID]*MailQueueItem)
+	queue = make(map[time.Time]*MailQueueItem)
 )
 
 // MailQueueItem is a struct that represents an item in the mail queue
@@ -33,7 +33,7 @@ type MailQueueItem struct {
 }
 
 // ViewMailQueue returns the current mail queue
-func ViewMailQueue() map[uuid.UUID]*MailQueueItem {
+func ViewMailQueue() map[time.Time]*MailQueueItem {
 	return queue
 }
 
@@ -53,12 +53,12 @@ type Mail struct {
 // DatabaseBackend is a struct that represents a database backend
 type DatabaseBackend struct {
 	CheckUser func(*Address) (bool, error)
-	WriteMail func(*Mail) (uuid.UUID, error)
+	WriteMail func(*Mail) error
 }
 
 // AuthenticationBackend is a struct that represents an authentication backend
 type AuthenticationBackend struct {
-	Authenticate func(string) (*Address, error)
+	Authenticate func(conn *textproto.Conn) (*Address, error)
 }
 
 func readMultilineCodeResponse(conn *textproto.Conn) (int, string, error) {
@@ -83,7 +83,7 @@ func readMultilineCodeResponse(conn *textproto.Conn) (int, string, error) {
 }
 
 func systemError(err error, receiver *Address, database DatabaseBackend) {
-	_, _ = database.WriteMail(&Mail{
+	_ = database.WriteMail(&Mail{
 		From: &Address{
 			Name:    "EMail System",
 			Address: "system",
@@ -93,7 +93,7 @@ func systemError(err error, receiver *Address, database DatabaseBackend) {
 	})
 }
 
-func sendEmail(args SenderArgs, mail *Mail, database DatabaseBackend, queueID uuid.UUID) {
+func sendEmail(args SenderArgs, mail *Mail, database DatabaseBackend, queueID time.Time) {
 	mxs, err := net.LookupMX(mail.To[0].Address)
 	if err != nil {
 		systemError(err, queue[queueID].From, database)
@@ -320,7 +320,7 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 				}
 				continue
 			} else {
-				address, err := fr.auth.Authenticate(line)
+				address, err := fr.auth.Authenticate(textProto)
 				if err != nil {
 					_ = textProto.PrintfLine("421 4.7.0 Temporary server error")
 					_ = conn.Close()
@@ -557,7 +557,7 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 			}
 
 			if !isSubmission {
-				_, err := fr.database.WriteMail(mail)
+				err := fr.database.WriteMail(mail)
 				if err != nil {
 					_ = textProto.PrintfLine(err.Error())
 					_ = conn.Close()
@@ -571,7 +571,7 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 					return
 				}
 			} else {
-				queueID := uuid.New()
+				queueID := time.Now()
 
 				queue[queueID] = &MailQueueItem{
 					From: state.FROM,
