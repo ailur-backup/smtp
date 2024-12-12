@@ -22,10 +22,9 @@ var DatabaseBackend = smtp.DatabaseBackend{
 
 // AuthenticationBackend is a smtp.AuthenticationBackend implementation that always returns a fixed address for Authenticate.
 var AuthenticationBackend = smtp.AuthenticationBackend{
-	Authenticate: func(initial string, conn *textproto.Conn) (*smtp.Address, error) {
-		return &smtp.Address{
-			Name:    "test",
-			Address: "example.org",
+	Authenticate: func(initial string, conn *textproto.Conn) (smtp.CheckAddress, error) {
+		return func(address *smtp.Address) (bool, error) {
+			return true, nil
 		}, nil
 	},
 }

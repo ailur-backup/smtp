@@ -58,7 +58,8 @@ type DatabaseBackend struct {
 
 // AuthenticationBackend is a struct that represents an authentication backend
 type AuthenticationBackend struct {
-	Authenticate func(initial string, conn *textproto.Conn) (CheckAddress, error)
+	Authenticate        func(initial string, conn *textproto.Conn) (CheckAddress, error)
+	SupportedMechanisms []string
 }
 
 type CheckAddress func(*Address) (bool, error)
@@ -211,10 +212,9 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 		return
 	}
 
-	fmt.Println("Connection from", conn.RemoteAddr().String())
-
 	for {
 		line, err := textProto.ReadLine()
+		fmt.Println(line)
 		if err != nil {
 			_ = textProto.PrintfLine("421 4.7.0 Temporary server error")
 			_ = conn.Close()
@@ -283,6 +283,9 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 				if fr.enforceTLS {
 					capabilities = append(capabilities, "250-REQUIRETLS")
 				}
+				if fr.auth.SupportedMechanisms != nil {
+					capabilities = append(capabilities, "250-AUTH "+strings.Join(fr.auth.SupportedMechanisms, " "))
+				}
 				capabilities = append(capabilities, defaultCapabilities...)
 				state.HELO = true
 				err = speakMultiLine(textProto, capabilities)
@@ -293,6 +296,8 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 				}
 			}
 		case strings.HasPrefix(line, "AUTH"):
+			fmt.Println("It's about time")
+
 			if !isSubmission {
 				err = textProto.PrintfLine("503 5.5.1 AUTH only allowed on submission port")
 				if err != nil {
@@ -714,10 +719,7 @@ func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error)
 	}
 
 	code, line, err = textConn.ReadCodeLine(0)
-	fmt.Println(code, line, err)
 	if err != nil {
-		// For some reason the EHLO stuff ends up here
-		fmt.Println("5")
 		return err
 	}
 
@@ -732,9 +734,7 @@ func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error)
 		}
 
 		code, line, err = textConn.ReadCodeLine(0)
-		fmt.Println(code, line, err)
 		if err != nil {
-			fmt.Println("6")
 			return err
 		}
 
@@ -749,9 +749,7 @@ func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error)
 	}
 
 	code, line, err = textConn.ReadCodeLine(0)
-	fmt.Println(code, line, err)
 	if err != nil {
-		fmt.Println("7")
 		return err
 	}
 
@@ -771,9 +769,7 @@ func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error)
 	}
 
 	code, line, err = textConn.ReadCodeLine(0)
-	fmt.Println(code, line, err)
 	if err != nil {
-		fmt.Println("8")
 		return err
 	}
 
@@ -787,9 +783,7 @@ func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error)
 	}
 
 	code, line, err = textConn.ReadCodeLine(0)
-	fmt.Println(code, line, err)
 	if err != nil {
-		fmt.Println("9")
 		return err
 	}
 
