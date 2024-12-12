@@ -214,7 +214,6 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 
 	for {
 		line, err := textProto.ReadLine()
-		fmt.Println(line)
 		if err != nil {
 			_ = textProto.PrintfLine("421 4.7.0 Temporary server error")
 			_ = conn.Close()
@@ -296,8 +295,6 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 				}
 			}
 		case strings.HasPrefix(line, "AUTH"):
-			fmt.Println("It's about time")
-
 			if !isSubmission {
 				err = textProto.PrintfLine("503 5.5.1 AUTH only allowed on submission port")
 				if err != nil {
@@ -329,7 +326,7 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 			} else {
 				checkAddress, err := fr.auth.Authenticate(strings.TrimPrefix(line, "AUTH "), textProto)
 				if err != nil {
-					_ = textProto.PrintfLine("421 4.7.0 Temporary server error")
+					_ = textProto.PrintfLine(err.Error())
 					_ = conn.Close()
 					return
 				}
@@ -593,7 +590,6 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 					Host: strings.Split(conn.RemoteAddr().String(), ":")[0],
 				}
 				go sendEmail(SenderArgs{
-					Hostname:   fr.hostname,
 					EnforceTLS: fr.enforceTLS,
 				}, mail, fr.database, queueID)
 
@@ -622,13 +618,32 @@ func (fr *Receiver) handleConnection(conn net.Conn) {
 
 // SenderArgs is a struct that represents the arguments for the Sender
 type SenderArgs struct {
-	Hostname   string
 	EnforceTLS bool
+}
+
+type DebugRWC struct {
+	net.Conn
+}
+
+func (d DebugRWC) Write(p []byte) (n int, err error) {
+	fmt.Println("Write: ", string(p))
+	return d.Conn.Write(p)
+}
+
+func (d DebugRWC) Read(p []byte) (n int, err error) {
+	n, err = d.Conn.Read(p)
+	fmt.Println("Read: ", string(p))
+	return
+}
+
+func (d DebugRWC) Close() error {
+	fmt.Println("Close")
+	return d.Conn.Close()
 }
 
 // Send sends an email to another server
 func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error) {
-	textConn := textproto.NewConn(conn)
+	textConn := textproto.NewConn(DebugRWC{conn})
 
 	err = textConn.PrintfLine("RSET")
 	if err != nil {
@@ -653,7 +668,7 @@ func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error)
 		return errors.New("unexpected greeting - " + line)
 	}
 
-	err = textConn.PrintfLine("EHLO %s", args.Hostname)
+	err = textConn.PrintfLine("EHLO %s", mxHost)
 	if err != nil {
 		return err
 	}
@@ -696,7 +711,7 @@ func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error)
 
 		// Just use HELO, no point using EHLO when we already have all the capabilities
 		// This also gets us out of using readMultilineCodeResponse
-		err = textConn.PrintfLine("HELO %s", args.Hostname)
+		err = textConn.PrintfLine("HELO %s", mxHost)
 		if err != nil {
 			return err
 		}
