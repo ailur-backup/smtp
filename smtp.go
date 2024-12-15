@@ -621,29 +621,9 @@ type SenderArgs struct {
 	EnforceTLS bool
 }
 
-type DebugRWC struct {
-	net.Conn
-}
-
-func (d DebugRWC) Write(p []byte) (n int, err error) {
-	fmt.Println("Write: ", string(p))
-	return d.Conn.Write(p)
-}
-
-func (d DebugRWC) Read(p []byte) (n int, err error) {
-	n, err = d.Conn.Read(p)
-	fmt.Println("Read: ", string(p))
-	return
-}
-
-func (d DebugRWC) Close() error {
-	fmt.Println("Close")
-	return d.Conn.Close()
-}
-
 // Send sends an email to another server
 func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error) {
-	textConn := textproto.NewConn(DebugRWC{conn})
+	textConn := textproto.NewConn(conn)
 
 	err = textConn.PrintfLine("RSET")
 	if err != nil {
@@ -701,11 +681,6 @@ func Send(args SenderArgs, mail *Mail, conn net.Conn, mxHost string) (err error)
 			ServerName:         mxHost,
 			InsecureSkipVerify: false,
 		})
-
-		err = tlsConn.Handshake()
-		if err != nil {
-			return err
-		}
 
 		textConn = textproto.NewConn(tlsConn)
 
